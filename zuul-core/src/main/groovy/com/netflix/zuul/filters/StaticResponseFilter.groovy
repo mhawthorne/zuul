@@ -53,7 +53,7 @@ public abstract class StaticResponseFilter extends ZuulFilter {
         return 0
     }
 
-    boolean shouldFilter() {
+    boolean shouldFilter(RequestContext ctx) {
         String path = RequestContext.currentContext.getRequest().getRequestURI()
         if (checkPath(path)) return true
         if (checkPath("/" + path)) return true
@@ -78,8 +78,7 @@ public abstract class StaticResponseFilter extends ZuulFilter {
     }
 
     @Override
-    Object run() {
-        RequestContext ctx = RequestContext.getCurrentContext();
+    Object run(RequestContext ctx) {
         // Set the default response code for static filters to be 200
         ctx.getResponse().setStatus(HttpServletResponse.SC_OK);
         // first StaticResponseFilter instance to match wins, others do not set body and/or status

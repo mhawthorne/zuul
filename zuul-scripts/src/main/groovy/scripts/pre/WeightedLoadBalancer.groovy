@@ -64,7 +64,7 @@ class WeightedLoadBalancer extends ZuulFilter {
      * @return
      */
     @Override
-    boolean shouldFilter() {
+    boolean shouldFilter(RequestContext ctx) {
 
 
         if (AltPercent.get() == 0) return false
@@ -78,7 +78,7 @@ class WeightedLoadBalancer extends ZuulFilter {
     }
 
     @Override
-    Object run() {
+    Object run(RequestContext ctx) {
         if (AltVIP.get() != null) {
             (NFRequestContext.currentContext).routeVIP = AltVIP.get()
             if (NFRequestContext.currentContext.routeVIP.startsWith(RibbonConfig.getApplicationName())) {

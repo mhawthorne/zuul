@@ -15,6 +15,7 @@
  */
 package com.netflix.zuul;
 
+import com.netflix.zuul.context.RequestContext;
 import com.netflix.zuul.filters.FilterRegistry;
 import org.junit.Before;
 import org.junit.Test;
@@ -210,11 +211,11 @@ public class FilterLoader {
             return 0;
         }
 
-        public boolean shouldFilter() {
+        public boolean shouldFilter(RequestContext ctx) {
             return false;
         }
 
-        public Object run() {
+        public Object run(RequestContext ctx) {
             return null;
         }
     }

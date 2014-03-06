@@ -43,12 +43,12 @@ class ErrorResponse extends ZuulFilter {
     }
 
 
-    boolean shouldFilter() {
+    boolean shouldFilter(RequestContext ctx) {
         return RequestContext.getCurrentContext().get("ErrorHandled") == null
     }
 
 
-    Object run() {
+    Object run(RequestContext ctx) {
 
         RequestContext context = RequestContext.currentContext
         Throwable ex = context.getThrowable()

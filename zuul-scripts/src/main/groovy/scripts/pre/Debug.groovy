@@ -38,14 +38,14 @@ class DebugFilter extends ZuulFilter {
         return 1
     }
 
-    boolean shouldFilter() {
+    boolean shouldFilter(RequestContext ctx) {
 
         if ("true".equals(NFRequestContext.currentContext.getRequest().getParameter(debugParameter.get()))) return true;
         return routingDebug.get();
 
     }
 
-    Object run() {
+    Object run(RequestContext ctx) {
         RequestContext.getCurrentContext().setDebugRequest(true)
         RequestContext.getCurrentContext().setDebugRouting(true)
         return null;

@@ -62,6 +62,7 @@ public class NFRequestContext extends RequestContext {
      *
      * @return
      */
+    @Deprecated
     public static NFRequestContext getCurrentContext() {
         return (NFRequestContext) RequestContext.threadLocal.get();
     }

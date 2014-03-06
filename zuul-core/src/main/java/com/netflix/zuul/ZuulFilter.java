@@ -17,6 +17,7 @@ package com.netflix.zuul;
 
 import com.netflix.config.DynamicBooleanProperty;
 import com.netflix.config.DynamicPropertyFactory;
+import com.netflix.zuul.context.RequestContext;
 import com.netflix.zuul.monitoring.Tracer;
 import com.netflix.zuul.monitoring.TracerFactory;
 import org.junit.Before;
@@ -28,7 +29,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * Base abstract class for ZuulFilters. The base class defines abstract methods to define:
@@ -40,7 +44,7 @@ import static org.mockito.Mockito.*;
  * filterOrder() must also be defined for a filter. Filters may have the same  filterOrder if precedence is not
  * important for a filter. filterOrders do not need to be sequential.
  * <p/>
- * ZuulFilters may be disabled using Archius Properties.
+ * ZuulFilters may be disabled using Archaius Properties.
  * <p/>
  * By default ZuulFilters are static; they don't carry state. This may be overridden by overriding the isStaticFilter() property to false
  *
@@ -103,13 +107,13 @@ public abstract class ZuulFilter implements IZuulFilter, Comparable<ZuulFilter> 
      *
      * @return the return from ZuulFilterResult
      */
-    public ZuulFilterResult runFilter() {
+    public ZuulFilterResult runFilter(RequestContext ctx) {
         ZuulFilterResult zr = new ZuulFilterResult();
         if (!filterDisabled.get()) {
-            if (shouldFilter()) {
+            if (shouldFilter(ctx)) {
                 Tracer t = TracerFactory.instance().startMicroTracer("ZUUL::" + this.getClass().getSimpleName());
                 try {
-                    Object res = run();
+                    Object res = run(ctx);
                     zr = new ZuulFilterResult(res, ExecutionStatus.SUCCESS);
                 } catch (Throwable e) {
                     t.setName("ZUUL::" + this.getClass().getSimpleName() + " failed");
@@ -170,26 +174,28 @@ public abstract class ZuulFilter implements IZuulFilter, Comparable<ZuulFilter> 
                     return 0;
                 }
 
-                public boolean shouldFilter() {
+                public boolean shouldFilter(RequestContext ctx) {
                     return false;
                 }
 
-                public Object run() {
+                public Object run(RequestContext ctx) {
                     return null;
                 }
             }
 
+            RequestContext ctx = new RequestContext();
+
             TestZuulFilter tf1 = spy(new TestZuulFilter());
             TestZuulFilter tf2 = spy(new TestZuulFilter());
 
-            when(tf1.shouldFilter()).thenReturn(true);
-            when(tf2.shouldFilter()).thenReturn(false);
+            when(tf1.shouldFilter(ctx)).thenReturn(true);
+            when(tf2.shouldFilter(ctx)).thenReturn(false);
 
             try {
-                tf1.runFilter();
-                tf2.runFilter();
-                verify(tf1, times(1)).run();
-                verify(tf2, times(0)).run();
+                tf1.runFilter(ctx);
+                tf2.runFilter(ctx);
+                verify(tf1, times(1)).run(ctx);
+                verify(tf2, times(0)).run(ctx);
             } catch (Throwable throwable) {
                 throwable.printStackTrace();
             }

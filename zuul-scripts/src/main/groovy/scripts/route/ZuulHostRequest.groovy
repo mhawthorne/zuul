@@ -128,7 +128,7 @@ class ZuulHostRequest extends ZuulFilter {
         return 100
     }
 
-    boolean shouldFilter() {
+    boolean shouldFilter(RequestContext ctx) {
         return RequestContext.currentContext.getRouteHost() != null && RequestContext.currentContext.sendZuulResponse()
     }
 
@@ -173,7 +173,7 @@ class ZuulHostRequest extends ZuulFilter {
         return httpclient
     }
 
-    Object run() {
+    Object run(RequestContext ctx) {
         HttpServletRequest request = RequestContext.currentContext.getRequest();
         Header[] headers = buildZuulRequestHeaders(request)
         String verb = getVerb(request);

@@ -98,6 +98,7 @@ public class RequestContext extends ConcurrentHashMap<String, Object> {
      *
      * @return the current RequestContext
      */
+    @Deprecated
     public static RequestContext getCurrentContext() {
         if (testContext != null) return testContext;
 

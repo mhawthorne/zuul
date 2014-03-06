@@ -80,12 +80,12 @@ public class StartServer implements ServletContextListener {
             }
 
             @Override
-            public boolean shouldFilter() {
+            public boolean shouldFilter(RequestContext ctx) {
                 return true;
             }
 
             @Override
-            public Object run() {
+            public Object run(RequestContext ctx) {
                 logger.debug("running javaPreFilter");
                 RequestContext.getCurrentContext().set("javaPreFilter-ran", true);
                 return null;
@@ -104,12 +104,12 @@ public class StartServer implements ServletContextListener {
             }
 
             @Override
-            public boolean shouldFilter() {
+            public boolean shouldFilter(RequestContext ctx) {
                 return true;
             }
 
             @Override
-            public Object run() {
+            public Object run(RequestContext ctx) {
                 logger.debug("running javaPostFilter");
                 RequestContext.getCurrentContext().set("javaPostFilter-ran", true);
                 return null;

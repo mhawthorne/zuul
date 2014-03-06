@@ -179,7 +179,7 @@ public class FilterProcessor {
                 copy = ctx.copy();
             }
             
-            ZuulFilterResult result = filter.runFilter();
+            ZuulFilterResult result = filter.runFilter(ctx);
             ExecutionStatus s = result.getStatus();
             execTime = System.currentTimeMillis() - ltime;
             
@@ -237,7 +237,7 @@ public class FilterProcessor {
             try {
                 processor.processZuulFilter(filter);
                 verify(processor, times(1)).processZuulFilter(filter);
-                verify(filter, times(1)).runFilter();
+                verify(filter, times(1)).runFilter(new RequestContext());
 
             } catch (Throwable e) {
                 e.printStackTrace();
@@ -252,7 +252,7 @@ public class FilterProcessor {
             try {
                 ZuulFilterResult r = new ZuulFilterResult(ExecutionStatus.FAILED);
                 r.setException(new Exception("Test"));
-                when(filter.runFilter()).thenReturn(r);
+                when(filter.runFilter(any(RequestContext.class))).thenReturn(r);
                 processor.processZuulFilter(filter);
                 assertFalse(true);
             } catch (Throwable e) {
