@@ -48,12 +48,12 @@ public class PreDecoration extends ZuulFilter {
     }
 
     @Override
-    boolean shouldFilter(RequestContext ctx) {
+    boolean shouldFilter() {
         return true
     }
 
     @Override
-    Object run(RequestContext ctx) {
+    Object run() {
         if (RequestContext.currentContext.getRequest().getParameter("url") != null) {
             try {
                 RequestContext.getCurrentContext().routeHost = new URL(RequestContext.currentContext.getRequest().getParameter("url"))

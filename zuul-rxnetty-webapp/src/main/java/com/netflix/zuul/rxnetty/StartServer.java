@@ -1,15 +1,14 @@
 package com.netflix.zuul.rxnetty;
 
-import com.netflix.zuul.FilterFileManager;
-import com.netflix.zuul.FilterLoader;
-import com.netflix.zuul.ZuulAsyncFilter;
-import com.netflix.zuul.ZuulFilter;
-import com.netflix.zuul.ZuulRunner;
-import com.netflix.zuul.context.RequestContext;
-import com.netflix.zuul.exception.ZuulException;
+import com.netflix.zuul2.FilterFileManager;
+import com.netflix.zuul2.FilterLoader;
+import com.netflix.zuul2.ZuulAsyncFilter;
+import com.netflix.zuul2.ZuulFilterBase;
 import com.netflix.zuul.groovy.GroovyCompiler;
 import com.netflix.zuul.groovy.GroovyFileFilter;
 import com.netflix.zuul.monitoring.MonitoringHelper;
+import com.netflix.zuul2.ZuulRequestContext;
+import com.netflix.zuul2.ZuulSimpleFilter;
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.protocol.http.server.HttpServer;
@@ -63,8 +62,6 @@ public class StartServer {
 
         private static final Logger LOG = LoggerFactory.getLogger(ZuulRequestHandler.class);
 
-        private final ZuulRunner zuulRunner = new ZuulRunner();
-
         private ZuulRequestHandler() {}
 
         @Override
@@ -83,9 +80,9 @@ public class StartServer {
 //            }
 
             // build filter chain
-            final RequestContext ctx = new RequestContext();
-            ctx.set("request", request);
-            ctx.set("response", response);
+            final ZuulRequestContext ctx = new ZuulRequestContext();
+            ctx.put("request", request);
+            ctx.put("response", response);
 
             final FilterLoader filterLoader = FilterLoader.getInstance();
 
@@ -176,10 +173,10 @@ public class StartServer {
 //            return observables;
 //        }
 
-        private <T> List<Observable<T>> buildTypedFilterChain(String type, final RequestContext ctx, FilterLoader filterLoader) {
-            final List<ZuulFilter> filters = filterLoader.getFiltersByType(type);
+        private <T> List<Observable<T>> buildTypedFilterChain(String type, final ZuulRequestContext ctx, FilterLoader filterLoader) {
+            final List<ZuulFilterBase> filters = filterLoader.getFiltersByType(type);
             final List<Observable<T>> observables = new LinkedList<Observable<T>>();
-            for (final ZuulFilter f : filters) {
+            for (final ZuulFilterBase f : filters) {
                 final Action1<Throwable> filterOnError = new Action1<Throwable>() {
                     @Override
                     public void call(Throwable t) {
@@ -187,24 +184,41 @@ public class StartServer {
                     }
                 };
 
-                if (f instanceof ZuulAsyncFilter) {
-                    // TODO: need to insert a shouldFilter call here
-                    observables.add(((ZuulAsyncFilter) f).toObservable(ctx).doOnError(filterOnError));
-                } else {
-                    observables.add(Observable.create(new OnSubscribe<T>() {
+                Observable filterObservable = null;
+
+                if (f instanceof ZuulSimpleFilter) {
+                    filterObservable = Observable.create(new OnSubscribe<T>() {
                         @Override
-                        public void call(Subscriber subscriber) {
+                        public void call(Subscriber sub) {
                             if (f.shouldFilter(ctx)) {
-                                f.run(ctx);
-                                subscriber.onCompleted();
+                                ((ZuulSimpleFilter) f).run(ctx);
                             }
+                            sub.onCompleted();
                         }
-                    }).doOnError(filterOnError).doOnTerminate(new Action0() {
+                    });
+                } else if (f instanceof ZuulAsyncFilter) {
+                    filterObservable = Observable.create(new OnSubscribe<T>() {
                         @Override
-                        public void call() {
-                            boolean b = true;
+                        public void call(Subscriber sub) {
+                            if (f.shouldFilter(ctx)) {
+                                ((ZuulAsyncFilter) f).toObservable(ctx).subscribe(sub);
+                            }
+//                            sub.onCompleted();
                         }
-                    }));
+                    });
+                } else {
+                    LOG.error("unrecognized filter class {} for instance {}", f.getClass().getName(), f);
+                }
+
+                filterObservable.doOnError(filterOnError).doOnTerminate(new Action0() {
+                    @Override
+                    public void call() {
+                        boolean b = true;
+                    }
+                });
+
+                if(filterObservable != null) {
+                    observables.add(filterObservable);
                 }
             }
 
@@ -215,43 +229,6 @@ public class StartServer {
             return Observable.<Void>empty();
         }
 
-        /**
-         * executes "post" ZuulFilters
-         *
-         * @throws ZuulException
-         */
-        void postRoute() throws ZuulException {
-            zuulRunner.postRoute();
-        }
-
-        /**
-         * executes "route" filters
-         *
-         * @throws ZuulException
-         */
-        void route() throws ZuulException {
-            zuulRunner.route();
-        }
-
-        /**
-         * executes "pre" filters
-         *
-         * @throws ZuulException
-         */
-        void preRoute() throws ZuulException {
-            zuulRunner.preRoute();
-        }
-
-        /**
-         * sets error context info and executes "error" filters
-         *
-         * @param e
-         */
-        void error(ZuulException e) {
-            RequestContext.getCurrentContext().setThrowable(e);
-            zuulRunner.error();
-            LOG.error(e.getMessage(), e);
-        }
     }
 
 }

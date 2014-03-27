@@ -22,7 +22,6 @@ import com.netflix.config.ConfigurationManager
 import com.netflix.util.Pair
 import com.netflix.zuul.ZuulFilter
 import com.netflix.zuul.context.NFRequestContext
-import com.netflix.zuul.context.RequestContext
 import com.netflix.zuul.stats.AmazonInfoHolder
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -50,12 +49,12 @@ class RequestEventInfoCollectorFilter extends ZuulFilter {
         return "post"
     }
 
-    boolean shouldFilter(RequestContext ctx) {
+    boolean shouldFilter() {
         return true
     }
 
-    Object run(RequestContext ctx) {
-        NFRequestContext nfctx = (NFRequestContext) ctx;
+    Object run() {
+        NFRequestContext ctx = NFRequestContext.getCurrentContext();
         final Map<String, Object> event = ctx.getEventProperties();
 
         try {

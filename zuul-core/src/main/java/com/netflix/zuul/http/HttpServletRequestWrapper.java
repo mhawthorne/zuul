@@ -106,6 +106,7 @@ public class HttpServletRequestWrapper implements HttpServletRequest {
         return contentData.clone();
     }
 
+
     /**
      * This method is safe to use multiple times.
      * Changing the returned map or the array of any of the map's values will not
@@ -138,22 +139,32 @@ public class HttpServletRequestWrapper implements HttpServletRequest {
             }
         }
 
+        LOG.debug("Path = " + req.getPathInfo());
+        LOG.debug("Transfer-Encoding = " + String.valueOf(req.getHeader(ZuulHeaders.TRANSFER_ENCODING)));
+        LOG.debug("Content-Encoding = " + String.valueOf(req.getHeader(ZuulHeaders.CONTENT_ENCODING)));
+
+        LOG.debug("Content-Length header = " + req.getContentLength());
         if (req.getContentLength() > 0) {
-            byte[] data = new byte[req.getContentLength()];
-            int len = 0, totalLen = 0;
-            InputStream is = req.getInputStream();
-            while (totalLen < data.length) {
-                totalLen += (len = is.read(data, totalLen, data.length - totalLen));
-                if (len < 1)
-                    throw new IOException("Cannot read more than " + totalLen + (totalLen == 1 ? " byte!" : " bytes!"));
+
+            // Read the request body inputstream into a byte array.
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            IOUtils.copy(req.getInputStream(), baos);
+            contentData = baos.toByteArray();
+
+            try {
+                LOG.debug("Length of contentData byte array = " + contentData.length);
+                if (req.getContentLength() != contentData.length) {
+                    LOG.warn("Content-length different from byte array length! cl=" + req.getContentLength() + ", array=" + contentData.length);
+                }
+            } catch(Exception e) {
+                LOG.error("Error checking if request body gzipped!", e);
             }
-            contentData = data;
 
             String enc = req.getCharacterEncoding();
 
             if (enc == null)
                 enc = "UTF-8";
-            String s = new String(data, enc), name, value;
+            String s = new String(contentData, enc), name, value;
             StringTokenizer st = new StringTokenizer(s, "&");
             int i;
 
@@ -185,8 +196,12 @@ public class HttpServletRequestWrapper implements HttpServletRequest {
 
         } else if (req.getContentLength() == -1) {
             final String transferEncoding = req.getHeader(ZuulHeaders.TRANSFER_ENCODING);
-            if (transferEncoding != null && transferEncoding.equals(ZuulHeaders.CHUNKED))
+            if (transferEncoding != null && transferEncoding.equals(ZuulHeaders.CHUNKED)) {
                 RequestContext.getCurrentContext().setChunkedRequestBody();
+                LOG.debug("Set flag that request body is chunked.");
+            }
+        } else {
+            LOG.warn("Content-Length is neither greater than zero or -1. = " + req.getContentLength());
         }
 
         HashMap<String, String[]> map = new HashMap<String, String[]>(mapA.size() * 2);
@@ -198,7 +213,6 @@ public class HttpServletRequestWrapper implements HttpServletRequest {
         parameters = map;
 
     }
-
 
     /**
      * This method is safe to call multiple times.

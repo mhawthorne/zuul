@@ -67,11 +67,11 @@ class ZuulNFRequest extends ZuulFilter {
         return 10
     }
 
-    boolean shouldFilter(RequestContext ctx) {
+    boolean shouldFilter() {
         return NFRequestContext.currentContext.getRouteHost() == null && RequestContext.currentContext.sendZuulResponse()
     }
 
-    Object run(RequestContext ctx) {
+    Object run() {
         NFRequestContext context = NFRequestContext.currentContext
         HttpServletRequest request = context.getRequest();
 

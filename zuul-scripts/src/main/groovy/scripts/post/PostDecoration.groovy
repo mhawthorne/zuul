@@ -39,12 +39,12 @@ class Postfilter extends ZuulFilter {
 
     }
 
-    boolean shouldFilter(RequestContext ctx) {
+    boolean shouldFilter() {
         if (true.equals(NFRequestContext.getCurrentContext().zuulToZuul)) return false; //request was routed to a zuul server, so don't send response headers
         return true
     }
 
-    Object run(RequestContext ctx) {
+    Object run() {
         addStandardResponseHeaders(RequestContext.getCurrentContext().getRequest(), RequestContext.getCurrentContext().getResponse())
         return null;
     }

@@ -45,13 +45,13 @@ class DebugRequest extends ZuulFilter {
     }
 
     @Override
-    boolean shouldFilter(RequestContext ctx) {
+    boolean shouldFilter() {
         return Debug.debugRequest()
 
     }
 
     @Override
-    Object run(RequestContext ctx) {
+    Object run() {
 
         HttpServletRequest req = RequestContext.currentContext.request as HttpServletRequest
 
@@ -67,6 +67,7 @@ class DebugRequest extends ZuulFilter {
 
         }
 
+        final RequestContext ctx = RequestContext.getCurrentContext()
         if (!ctx.isChunkedRequestBody()) {
             InputStream inp = ctx.request.getInputStream()
             String body = null

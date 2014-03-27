@@ -44,12 +44,12 @@ class Stats extends ZuulFilter {
     }
 
     @Override
-    boolean shouldFilter(RequestContext ctx) {
+    boolean shouldFilter() {
         return true
     }
 
     @Override
-    Object run(RequestContext ctx) {
+    Object run() {
         int status = RequestContext.getCurrentContext().getResponseStatusCode();
         StatsManager sm = StatsManager.manager
         sm.collectRequestStats(RequestContext.getCurrentContext().getRequest());

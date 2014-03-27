@@ -13,28 +13,24 @@
  *      See the License for the specific language governing permissions and
  *      limitations under the License.
  */
-package com.netflix.zuul;
+package com.netflix.zuul2;
+
+import com.netflix.zuul2.ZuulRequestContext;
 
 /**
- * BAse interface for ZuulFilters
+ * Base interface for ZuulFilters
  *
  * @author Mikey Cohen
  *         Date: 10/27/11
  *         Time: 3:03 PM
  */
 public interface IZuulFilter {
+
     /**
      * a "true" return from this method means that the run() method should be invoked
      *
      * @return true if the run() method should be invoked. false will not invoke the run() method
      */
-    boolean shouldFilter();
-
-    /**
-     * if shouldFilter() is true, this method will be invoked. this method is the core method of a ZuulFilter
-     *
-     * @return Some arbitrary artifact may be returned. Current implementation ignores it.
-     */
-    Object run();
+    boolean shouldFilter(ZuulRequestContext ctx);
 
 }

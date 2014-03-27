@@ -45,7 +45,7 @@ class Routing extends ZuulFilter {
         return "pre"
     }
 
-    boolean shouldFilter(RequestContext ctx) {
+    boolean shouldFilter() {
         return true
     }
 
@@ -55,7 +55,7 @@ class Routing extends ZuulFilter {
         FilterProcessor.instance.runFilters("static")
     }
 
-    Object run(RequestContext ctx) {
+    Object run() {
 
         staticRouting() //runs the static Zuul
 
