@@ -33,14 +33,12 @@ class PreDecorationFilter extends ZuulFilter {
     }
 
     @Override
-    boolean shouldFilter() {
+    boolean shouldFilter(RequestContext ctx) {
         return true;
     }
 
     @Override
-    Object run() {
-        RequestContext ctx = RequestContext.getCurrentContext()
-
+    Object run(RequestContext ctx) {
         // sets origin
         ctx.setRouteHost(new URL("http://apache.org/"));
 

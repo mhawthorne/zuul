@@ -1,0 +1,58 @@
+apply plugin: 'java'
+apply plugin: 'war'
+apply plugin: 'eclipse'
+apply plugin: 'idea'
+apply plugin: 'jetty'
+
+
+// com.netflix.rxjava:rxjava-core:0.16.0
+
+configurations.all {
+    resolutionStrategy.eachDependency { DependencyResolveDetails details ->
+        if (details.requested.group == 'com.netflix.rxjava' && details.requested.name == 'rxjava-core') {
+            details.useVersion '[0.17,)'
+        }
+    }
+}
+
+dependencies {
+    compile project(":zuul-core")
+    
+    compile 'log4j:log4j:1.2.17'
+    compile 'org.slf4j:slf4j-log4j12:1.6.1'
+    //compile 'org.apache.httpcomponents:httpclient:4.2.2'
+
+    compile 'io.netty:netty-handler:4.0.14.Final'
+    compile 'io.netty:netty-codec-http:4.0.14.Final'
+    compile 'com.netflix.rxjava:rxjava-core:[0.17,)'
+    
+    provided 'junit:junit-dep:4.10'
+    //provided 'javax.servlet:servlet-api:2.5'
+
+    // using local copy of rxnetty until it is public
+    compile files('lib/rx-netty-0.3.1.jar')
+}
+
+eclipse {
+  classpath {
+        // include 'provided' dependencies on the classpath
+        plusConfigurations += configurations.provided
+        downloadSources = true
+        downloadJavadoc = true
+  }
+}
+
+
+idea {
+    module {
+        // include 'provided' dependencies on the classpath
+        scopes.PROVIDED.plus += configurations.provided
+    }
+}
+
+// runs webapp at root context
+jettyRun.contextPath = '/' 
+
+jettyRun.doFirst {
+    System.setProperty("zuul.filter.root", "src/main/filters")    
+}
