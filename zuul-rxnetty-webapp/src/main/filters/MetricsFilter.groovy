@@ -29,7 +29,7 @@ class MetricsFilter extends ZuulSimpleFilter {
 
     @Override
     Object run(ZuulRequestContext ctx) {
-        LOG.info("{s} {s}", ctx.path, ctx.responseStatusCode);
+        LOG.info("{} {}", ctx.path, ctx.responseStatusCode);
     }
 
 }

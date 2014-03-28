@@ -66,19 +66,6 @@ public class StartServer {
 
         @Override
         public Observable<Void> handle(HttpServerRequest<ByteBuf> request, HttpServerResponse<ByteBuf> response) {
-            System.out.println("Server => Request: " + request.getPath());
-//            try {
-//                if (request.getPath().equals("/error")) {
-//                    throw new RuntimeException("forced error");
-//                }
-//                response.setStatus(HttpResponseStatus.OK);
-//                return response.writeStringAndFlush("Path Requested =>: " + request.getPath() + "\n");
-//            } catch (Throwable e) {
-//                System.err.println("Server => Error [" + request.getPath() + "] => " + e);
-//                response.setStatus(HttpResponseStatus.BAD_REQUEST);
-//                return response.writeStringAndFlush("Error 500: Bad Request\n");
-//            }
-
             // build filter chain
             final ZuulRequestContext ctx = new ZuulRequestContext();
             ctx.put("request", request);
@@ -110,68 +97,7 @@ public class StartServer {
                     LOG.error("top level filter chain error", t);
                 }
             });
-
-//            try {
-//                // marks this request as having passed through the "Zuul engine", as opposed to servlets
-//                // explicitly bound in web.xml, for which requests will not have the same data attached
-//                final RequestContext ctx = new RequestContext();
-//                ctx.setZuulEngineRan();
-//
-//                try {
-//                    preRoute();
-//                } catch (ZuulException e) {
-//                    error(e);
-//                    postRoute();
-//                    return emptyObservable();
-//                }
-//                try {
-//                    route();
-//                } catch (ZuulException e) {
-//                    error(e);
-//                    postRoute();
-//                    return emptyObservable();
-//                }
-//                try {
-//                    postRoute();
-//                } catch (ZuulException e) {
-//                    error(e);
-//                    return emptyObservable();
-//                }
-//            } catch (Throwable e) {
-//                error(new ZuulException(e, 500, "UNHANDLED_EXCEPTION_" + e.getClass().getName()));
-//            } finally {
-//    //            RequestContext.getCurrentContext().unset();
-//            }
-//
-//            return emptyObservable();
         }
-
-//        private List<Observable> buildTypedFilterChain(String type, final RequestContext ctx, FilterLoader filterLoader) {
-//            final List<ZuulFilter> filters = filterLoader.getFiltersByType(type);
-//            final List<Observable> observables = new LinkedList<Observable>();
-//            for (final ZuulFilter f : filters) {
-//                if (f instanceof ZuulAsyncFilter) {
-//                    // TODO: need to insert a shouldFilter call here
-//                    observables.add(((ZuulAsyncFilter) f).toObservable(ctx));
-//                } else {
-//                    observables.add(Observable.create(new OnSubscribe<Object>() {
-//                        @Override
-//                        public void call(Subscriber subscriber) {
-//                            if (f.shouldFilter(ctx)) {
-//                                f.run(ctx);
-//                            }
-//                        }
-//                    }).doOnError(new Action1<Throwable>() {
-//                        @Override
-//                        public void call(Throwable throwable) {
-//                            boolean b = false;
-//                        }
-//                    }));
-//                }
-//            }
-//
-//            return observables;
-//        }
 
         private <T> List<Observable<T>> buildTypedFilterChain(String type, final ZuulRequestContext ctx, FilterLoader filterLoader) {
             final List<ZuulFilterBase> filters = filterLoader.getFiltersByType(type);
