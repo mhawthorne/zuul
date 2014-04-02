@@ -1,3 +1,6 @@
+import com.netflix.config.DynamicIntProperty
+import com.netflix.config.DynamicPropertyFactory
+import com.netflix.config.DynamicStringProperty
 import com.netflix.zuul2.ZuulAsyncFilter
 import com.netflix.zuul.context.RequestContext
 import com.netflix.zuul2.ZuulRequestContext
@@ -13,10 +16,19 @@ import rx.Subscriber
  */
 public class OriginRoutingFilter extends ZuulAsyncFilter {
 
+    private static final DynamicPropertyFactory DPF = DynamicPropertyFactory.getInstance();
+    private static final DynamicStringProperty ORIGIN_HOST = DPF.getStringProperty("zuul.origin.host", null);
+    private static final DynamicIntProperty ORIGIN_PORT = DPF.getIntProperty("zuul.origin.port", 80);
+
     final HttpClient<ByteBuf, ByteBuf> client;
 
     OriginRoutingFilter() {
-        client = RxNetty.createHttpClient("api.test.netflix.com", 80);
+        final String host = ORIGIN_HOST.get();
+        final int port = ORIGIN_PORT.get();
+        if (host == null) {
+            throw new IllegalStateException(ORIGIN_HOST.getName() + " cannot be null");
+        }
+        client = RxNetty.createHttpClient(ORIGIN_HOST.get(), ORIGIN_PORT.get());
     }
 
     @Override
