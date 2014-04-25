@@ -60,8 +60,8 @@ public class StartServer implements ServletContextListener {
                     scriptRoot + "/pre",
                     scriptRoot + "/route",
                     scriptRoot + "/post");
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+        } catch (Throwable t) {
+            throw new RuntimeException(t);
         }
     }
 

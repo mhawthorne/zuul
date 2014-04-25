@@ -1,6 +1,5 @@
 import com.netflix.util.Pair
-import com.netflix.zuul2.ZuulAsyncFilter
-import com.netflix.zuul.context.RequestContext
+import com.netflix.zuul2.ZuulObservableFilter
 import com.netflix.zuul2.ZuulRequestContext
 import io.netty.buffer.ByteBuf
 import io.netty.handler.codec.http.HttpResponseStatus
@@ -14,7 +13,7 @@ import rx.functions.Func1
 /**
  * @author mhawthorne
  */
-class SendResponseFilter extends ZuulAsyncFilter {
+class SendResponseFilter extends ZuulObservableFilter {
 
     @Override
     int filterOrder() {
@@ -62,6 +61,9 @@ class SendResponseFilter extends ZuulAsyncFilter {
                             ctxResHeaders.add(new Pair<String, String>(name, val));
                             clientRes.headers.add(name, val);
                         }
+
+                        // not sure if this will help
+                        clientRes.headers.add("connection", "keep-alive");
 
                         return res.getContent();
                     }

@@ -15,12 +15,8 @@
  */
 package com.netflix.zuul2;
 
-import com.netflix.config.DynamicBooleanProperty;
-import com.netflix.config.DynamicPropertyFactory;
 import com.netflix.zuul.ExecutionStatus;
-import com.netflix.zuul.ZuulFilter;
 import com.netflix.zuul.ZuulFilterResult;
-import com.netflix.zuul.context.RequestContext;
 import com.netflix.zuul.monitoring.Tracer;
 import com.netflix.zuul.monitoring.TracerFactory;
 import org.junit.Before;
@@ -54,7 +50,7 @@ import static org.mockito.Mockito.when;
  * @author Mikey Cohen
  * @author mhawthorne
  */
-public abstract class ZuulSimpleFilter extends ZuulFilterBase {
+public abstract class ZuulSimpleFilter extends ZuulFilter {
 
     /**
      * By default ZuulFilters are static; they don't carry state. This may be overridden by overriding the isStaticFilter() property to false
@@ -105,9 +101,9 @@ public abstract class ZuulSimpleFilter extends ZuulFilterBase {
 
     public static class TestUnit {
         @Mock
-        private ZuulFilter f1;
+        private com.netflix.zuul.ZuulFilter f1;
         @Mock
-        private ZuulFilter f2;
+        private com.netflix.zuul.ZuulFilter f2;
 
         @Before
         public void before() {
@@ -120,7 +116,7 @@ public abstract class ZuulSimpleFilter extends ZuulFilterBase {
             when(f1.filterOrder()).thenReturn(1);
             when(f2.filterOrder()).thenReturn(10);
 
-            ArrayList<ZuulFilter> list = new ArrayList<ZuulFilter>();
+            ArrayList<com.netflix.zuul.ZuulFilter> list = new ArrayList<com.netflix.zuul.ZuulFilter>();
             list.add(f1);
             list.add(f2);
 

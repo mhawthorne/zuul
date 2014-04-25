@@ -13,8 +13,8 @@ public class DefaultFilterFactory implements FilterFactory {
      * @return A new instance of ZuulFilter
      */
     @Override
-    public ZuulFilterBase newInstance(Class clazz) throws InstantiationException, IllegalAccessException {
-        return (ZuulFilterBase) clazz.newInstance();
+    public ZuulFilter newInstance(Class clazz) throws InstantiationException, IllegalAccessException {
+        return (ZuulFilter) clazz.newInstance();
     }
 
 }

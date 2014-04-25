@@ -6,10 +6,17 @@ import com.netflix.config.DynamicPropertyFactory;
 /**
  * @author mhawthorne
  */
-public abstract class ZuulFilterBase implements IZuulFilter, Comparable<ZuulFilterBase> {
+public abstract class ZuulFilter implements Comparable<ZuulFilter> {
 
     protected final DynamicBooleanProperty filterDisabled =
         DynamicPropertyFactory.getInstance().getBooleanProperty(disablePropertyName(), false);
+
+    /**
+     * a "true" return from this method means that the run() method should be invoked
+     *
+     * @return true if the run() method should be invoked. false will not invoke the run() method
+     */
+    abstract public boolean shouldFilter(ZuulRequestContext ctx);
 
     /**
      * to classify a filter by type. Standard types in Zuul are "pre" for pre-routing filtering,
@@ -30,7 +37,7 @@ public abstract class ZuulFilterBase implements IZuulFilter, Comparable<ZuulFilt
     abstract public int filterOrder();
 
     @Override
-    public int compareTo(ZuulFilterBase other) {
+    public int compareTo(ZuulFilter other) {
         return this.filterOrder() - other.filterOrder();
     }
 

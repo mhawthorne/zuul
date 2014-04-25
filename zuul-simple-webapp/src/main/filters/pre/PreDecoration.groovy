@@ -14,13 +14,20 @@
  *      limitations under the License.
  */
 
+
+import com.netflix.config.DynamicPropertyFactory
 import com.netflix.zuul.ZuulFilter
 import com.netflix.zuul.context.RequestContext
+import org.omg.PortableInterceptor.ORBInitializerOperations
 
 /**
  * @author mhawthorne
  */
 class PreDecorationFilter extends ZuulFilter {
+
+    private static final ORIGIN_HOST = DynamicPropertyFactory.getInstance().getStringProperty("zuul.origin.host", null);
+
+    private URL originUrl;
 
     @Override
     int filterOrder() {
@@ -33,17 +40,29 @@ class PreDecorationFilter extends ZuulFilter {
     }
 
     @Override
-    boolean shouldFilter(RequestContext ctx) {
+    boolean shouldFilter() {
         return true;
     }
 
     @Override
-    Object run(RequestContext ctx) {
+    Object run() {
+        final RequestContext ctx = RequestContext.getCurrentContext();
+
+        if(originUrl == null) {
+            // the first few threads will hit this concurrently, but it's ok for now
+            final String rawOriginHost = ORIGIN_HOST.get();
+            if(rawOriginHost == null)
+                throw new IllegalStateException(ORIGIN_HOST.getName() + " must be set")
+            originUrl = new URL(rawOriginHost);
+        }
+
+        ctx.setRouteHost(originUrl)
+
         // sets origin
-        ctx.setRouteHost(new URL("http://apache.org/"));
+//        ctx.setRouteHost(new URL("http://apache.org/"));
 
         // sets custom header to send to the origin
-        ctx.addOriginResponseHeader("cache-control", "max-age=3600");
+        // ctx.addOriginResponseHeader("cache-control", "max-age=3600");
     }
 
 }

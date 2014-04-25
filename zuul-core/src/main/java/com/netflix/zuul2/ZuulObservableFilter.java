@@ -1,12 +1,11 @@
 package com.netflix.zuul2;
 
-import com.netflix.zuul.context.RequestContext;
 import rx.Observable;
 
 /**
  * @author mhawthorne
  */
-public abstract class ZuulAsyncFilter<T> extends ZuulFilterBase {
+public abstract class ZuulObservableFilter<T> extends ZuulFilter {
 
     public abstract Observable<T> toObservable(ZuulRequestContext ctx);
 

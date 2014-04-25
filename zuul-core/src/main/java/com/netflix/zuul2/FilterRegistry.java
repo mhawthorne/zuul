@@ -15,20 +15,20 @@ public class FilterRegistry {
         return INSTANCE;
     }
 
-    private final ConcurrentHashMap<String, ZuulFilterBase> filters = new ConcurrentHashMap<String, ZuulFilterBase>();
+    private final ConcurrentHashMap<String, ZuulFilter> filters = new ConcurrentHashMap<String, ZuulFilter>();
 
     private FilterRegistry() {
     }
 
-    public ZuulFilterBase remove(String key) {
+    public ZuulFilter remove(String key) {
         return this.filters.remove(key);
     }
 
-    public ZuulFilterBase get(String key) {
+    public ZuulFilter get(String key) {
         return this.filters.get(key);
     }
 
-    public void put(String key, ZuulFilterBase filter) {
+    public void put(String key, ZuulFilter filter) {
         this.filters.putIfAbsent(key, filter);
     }
 
@@ -36,7 +36,7 @@ public class FilterRegistry {
         return this.filters.size();
     }
 
-    public Collection<ZuulFilterBase> getAllFilters() {
+    public Collection<ZuulFilter> getAllFilters() {
         return this.filters.values();
     }
 

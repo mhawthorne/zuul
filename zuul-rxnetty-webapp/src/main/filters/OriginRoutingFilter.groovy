@@ -1,8 +1,7 @@
 import com.netflix.config.DynamicIntProperty
 import com.netflix.config.DynamicPropertyFactory
 import com.netflix.config.DynamicStringProperty
-import com.netflix.zuul2.ZuulAsyncFilter
-import com.netflix.zuul.context.RequestContext
+import com.netflix.zuul2.ZuulObservableFilter
 import com.netflix.zuul2.ZuulRequestContext
 import io.netty.buffer.ByteBuf
 import io.reactivex.netty.RxNetty
@@ -14,7 +13,7 @@ import rx.Subscriber
 /**
  * @author mhawthorne
  */
-public class OriginRoutingFilter extends ZuulAsyncFilter {
+public class OriginRoutingFilter extends ZuulObservableFilter {
 
     private static final DynamicPropertyFactory DPF = DynamicPropertyFactory.getInstance();
     private static final DynamicStringProperty ORIGIN_HOST = DPF.getStringProperty("zuul.origin.host", null);
@@ -48,18 +47,28 @@ public class OriginRoutingFilter extends ZuulAsyncFilter {
 
     @Override
     Observable toObservable(ZuulRequestContext ctx) {
+
+
         return Observable.create(new Observable.OnSubscribe<Subscriber>() {
             @Override
             void call(Subscriber sub) {
                 final String path = ctx.path;
-                if (path == null) path = "/"
+
+                final StringBuilder pathBuilder = new StringBuilder();
+                if (path == null) path = ""
+                pathBuilder.append(path != null ? path : "")
+
+                if(ctx.query != null)
+                    pathBuilder.append("?" + ctx.query)
+
 
                 final Map<String, String> reqHeaders = ctx.zuulRequestHeaders;
 
-                final HttpClientRequest originReq = HttpClientRequest.createGet(path);
+                final HttpClientRequest originReq = HttpClientRequest.createGet(pathBuilder.toString());
                 for(final String name : reqHeaders.keySet()) {
                     originReq.withHeader(name, reqHeaders.get(name));
                 }
+
 
                 final Observable<HttpServerResponse<ByteBuf>> res = client.submit(originReq);
                 ctx.originResponse = res;

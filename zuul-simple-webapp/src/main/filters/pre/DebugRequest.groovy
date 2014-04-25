@@ -20,10 +20,8 @@ import com.netflix.zuul.context.Debug
 import com.netflix.zuul.context.RequestContext
 import org.junit.Assert
 import org.junit.Test
-import org.junit.runner.RunWith
 import org.mockito.Mock
 import org.mockito.Mockito
-import org.mockito.runners.MockitoJUnitRunner
 
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
@@ -45,12 +43,14 @@ class DebugRequest extends ZuulFilter {
     }
 
     @Override
-    boolean shouldFilter(RequestContext ctx) {
+    boolean shouldFilter() {
         return Debug.debugRequest()
     }
 
     @Override
-    Object run(RequestContext ctx) {
+    Object run() {
+        RequestContext ctx = RequestContext.getCurrentContext()
+
         HttpServletRequest req = ctx.request as HttpServletRequest
 
         Debug.addRequestDebug("REQUEST:: " + req.getScheme() + " " + req.getRemoteAddr() + ":" + req.getRemotePort())
@@ -66,7 +66,7 @@ class DebugRequest extends ZuulFilter {
         }
 
         if (!ctx.isChunkedRequestBody()) {
-            InputStream inp = ctx.request.getInputStream()
+            InputStream inp = req.getInputStream()
             String body = null
             if (inp != null) {
                 body = inp.getText()

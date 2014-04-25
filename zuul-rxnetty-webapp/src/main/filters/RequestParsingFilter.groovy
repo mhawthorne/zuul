@@ -32,8 +32,13 @@ class RequestParsingFilter extends ZuulSimpleFilter {
 
     @Override
     Object run(ZuulRequestContext ctx) {
-        HttpServerRequest req = ctx.request;
-        ctx.path = req.path;
+        final HttpServerRequest req = ctx.request
+        ctx.path = req.getPath()
+        ctx.query = req.getQueryString()
+        if (ctx.query != null)
+            ctx.pathAndQuery = ctx.path + "?" + ctx.query
+        else
+            ctx.pathAndQuery = ctx.path
 
         // copies all Netty request headers into RequestContext
         final HttpRequestHeaders nettyReqHeaders = req.getHeaders();
