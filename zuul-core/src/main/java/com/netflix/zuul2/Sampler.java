@@ -11,11 +11,11 @@ public class Sampler {
 
     private static final Random random = new Random();
 
-    public static final boolean shouldSample(int samplePercentage) {
-        return shouldSample(randomLong(), samplePercentage);
+    public static final boolean shouldSampleByPercentage(int samplePercentage) {
+        return shouldSampleByPercentage(randomLong(), samplePercentage);
     }
 
-    public static final boolean shouldSample(long seed, int samplePercentage) {
+    public static final boolean shouldSampleByPercentage(long seed, int samplePercentage) {
         if (samplePercentage >= 100) return true;
         else if (samplePercentage <= 0) return false;
 
@@ -26,6 +26,23 @@ public class Sampler {
             result = rawResult == 0;
         } else {
             final int mod = Math.round((float) 100 / (100 - samplePercentage));
+            final long rawResult = seed % mod;
+            result = rawResult != 0;
+        }
+        return result;
+    }
+
+    public static final boolean shouldSampleByPermyriad(long seed, int samplePermyriad) {
+        if (samplePermyriad >= 10000) return true;
+        else if (samplePermyriad <= 0) return false;
+
+        boolean result;
+        if (samplePermyriad <= 5000) {
+            final int mod = Math.round((float) 10000 / samplePermyriad);
+            final long rawResult = seed % mod;
+            result = rawResult == 0;
+        } else {
+            final int mod = Math.round((float) 10000 / (10000 - samplePermyriad));
             final long rawResult = seed % mod;
             result = rawResult != 0;
         }
@@ -63,7 +80,7 @@ public class Sampler {
             final int iterations = 10000;
             int samples = 0;
             for (int i = 0; i < iterations; i++) {
-                final boolean b = Sampler.shouldSample(Sampler.randomLong(), desiredPercentage);
+                final boolean b = Sampler.shouldSampleByPercentage(Sampler.randomLong(), desiredPercentage);
                 if (b) samples++;
             }
 

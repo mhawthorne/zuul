@@ -106,6 +106,7 @@ public class StartServer {
                 @Override
                 public void call(Throwable t) {
                     LOG.error("top level filter chain error", t);
+                    t.printStackTrace();
                 }
             });
 
@@ -113,24 +114,24 @@ public class StartServer {
                 @Override
                 public void call(Subscriber<? super Void> sub) {
                     EventLogger.log(requestId, "request-filters-start");
-                    startRequest();
+                    startRequest(requestId);
                     finalFullFilterChain.subscribe(sub);
                 }
             }).doOnTerminate(new Action0() {
                 @Override
                 public void call() {
-                    endRequest();
+                    endRequest(requestId);
                     EventLogger.log(requestId, "request-filters-end");
                 }
             });
         }
 
-        private void startRequest() {
-            this.metrics.startRequest();
+        private void startRequest(String requestId) {
+            this.metrics.startRequest(requestId);
         }
 
-        private void endRequest() {
-            this.metrics.endRequest();
+        private void endRequest(String requestId) {
+            this.metrics.endRequest(requestId);
         }
 
         private <T> List<Observable<T>> buildTypedFilterChain(String type, final ZuulRequestContext ctx, FilterLoader filterLoader) {

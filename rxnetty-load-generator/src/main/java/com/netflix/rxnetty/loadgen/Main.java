@@ -44,6 +44,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
+ * RxNetty load generator.
+ *
  * @author mhawthorne
  */
 public class Main {
@@ -89,6 +91,11 @@ public class Main {
     private final JsonGenerator summaryGenerator;
     private final ObjectMapper jsonMapper = new ObjectMapper(); // .writer(new MinimalPrettyPrinter("\n"));
 
+//    private final int concurrentRequestsStart = 1;
+//    private int semaphoreLimit = concurrentRequestsStart;
+//    private final AtomicReference<Semaphore> semaphoreRef =
+//        new AtomicReference<Semaphore>(new Semaphore(semaphoreLimit));
+
     public Main(URL baseUrl, List<String> paths, String statsRoot, String testName) {
         this.client = new HttpClientBuilder<ByteBuf, ByteBuf>(baseUrl.getHost(), baseUrl.getPort())
             .withMaxConnections(1000)
@@ -117,7 +124,7 @@ public class Main {
         }
     }
 
-    private void logResponse(Long sequence, int status, String path, long requestMillis) {
+    private void logResponse(Long sequence, int status, String path, long requestMillis, LoadGenerationInfo load) {
         final PrintStream o = System.out;
 
         // logging every response is overkill and too much I/O
@@ -136,6 +143,10 @@ public class Main {
                 connPoolStats.getInUseCount(),
                 connPoolStats.getIdleCount()));
 
+            lastStats.put("connections", connPoolStats.getInUseCount());
+            lastStats.put("activeRequestsLimit", load.activeRequestsLimit);
+            lastStats.put("activeRequestPermitsAvailable", load.activeRequestSemaphore.availablePermits());
+
             // TODO: convert to JSON
             o.println(lastStats);
             try {
@@ -152,6 +163,22 @@ public class Main {
 
     private static final void log(String msg, Object ... args) {
         log(String.format(msg, args));
+    }
+
+    private static final class LoadGenerationInfo {
+
+        int activeRequestsLimit;
+        Semaphore activeRequestSemaphore;
+
+        LoadGenerationInfo(int activeRequestsLimit) {
+            this.setActiveRequests(activeRequestsLimit);
+        }
+
+        void setActiveRequests(int activeRequestsLimit) {
+            this.activeRequestsLimit = activeRequestsLimit;
+            this.activeRequestSemaphore = new Semaphore(activeRequestsLimit);
+        }
+
     }
 
     private void start() throws Exception {
@@ -173,11 +200,12 @@ public class Main {
         testStartMillis = System.currentTimeMillis();
         stats = new RequestStats(testStartMillis);
 
-        final int concurrentRequestsStart = 2;
+        final LoadGenerationInfo load = new LoadGenerationInfo(5);
 
-        final AtomicReference<Semaphore> semaphoreRef = new AtomicReference<Semaphore>(new Semaphore(concurrentRequestsStart));
+//        createConstantSemaphoreLoadGenerator(load)
 
-        createSemaphoreLoadGenerator(semaphoreRef)
+        createIncreasingSemaphoreLoadGenerator(load)
+
         .subscribe(new Action1<Long>() {
             @Override
             public void call(final Long l) {
@@ -200,7 +228,7 @@ public class Main {
                     @Override
                     public Observable<ByteBuf> call(HttpClientResponse<ByteBuf> res) {
                         final long requestLatency = System.currentTimeMillis() - requestStartTime;
-                        logResponse(l, res.getStatus().code(), finalRequestPath, requestLatency);
+                        logResponse(l, res.getStatus().code(), finalRequestPath, requestLatency, load);
                         return res.getContent();
                     }
                 }).map(new Func1<ByteBuf, Void>() {
@@ -213,7 +241,7 @@ public class Main {
                     @Override
                     public void call(Throwable t) {
                         final long requestLatency = System.currentTimeMillis() - requestStartTime;
-                        logResponse(l, -1, finalRequestPath, requestLatency);
+                        logResponse(l, -1, finalRequestPath, requestLatency, load);
 
 //                        log(t.getClass().getName());
                         t.printStackTrace();
@@ -221,7 +249,7 @@ public class Main {
                 }).doOnTerminate(new Action0() {
                     @Override
                     public void call() {
-                        semaphoreRef.get().release();
+                        load.activeRequestSemaphore.release();
                     }
                 }).subscribe();
             }
@@ -230,15 +258,50 @@ public class Main {
 
     // TODO: centralize dupe code between load generator observables
 
-    private static final Observable<Long> createSemaphoreLoadGenerator(final AtomicReference<Semaphore> semaphoreRef) {
+    private final Observable<Long> createConstantSemaphoreLoadGenerator(final LoadGenerationInfo load) {
+        return Observable.<Long>create(new OnSubscribe<Long>() {
+            @Override
+            public void call(Subscriber<? super Long> s) {
+                long requestsSentDuringWindow = 0;
+                long currentWindowStart = System.currentTimeMillis();
+
+                long lastCheckMillis = currentWindowStart;
+                long millisSinceLastCheck = 0;
+
+                for (long l = 1; true; l++) {
+                    final long currentMillis = System.currentTimeMillis();
+                    millisSinceLastCheck = currentMillis - lastCheckMillis;
+
+                    if (requestsSentDuringWindow > 0 && millisSinceLastCheck > 1000) {
+                        lastCheckMillis = currentMillis;
+                        final long millisSinceWindowStart = currentMillis - currentWindowStart;
+
+                        final long windowRps = requestsSentDuringWindow * 1000 / millisSinceWindowStart;
+                        log("windowRps: %d", windowRps);
+                    }
+
+                    try {
+                        load.activeRequestSemaphore.tryAcquire(5, TimeUnit.SECONDS);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+
+                    s.onNext(new Long(l));
+                    requestsSentDuringWindow++;
+                }
+            }
+        });
+    }
+
+    private final Observable<Long> createIncreasingSemaphoreLoadGenerator(final LoadGenerationInfo load) {
         final int windowMillis = 30000;
 
         final List<Integer> concurrencyWindows = new ArrayList<Integer>() {{
+            add(2);
             add(5);
             add(10);
             add(20);
-            add(50);
-            add(100);
+            add(40);
         }};
 
         return Observable.<Long>create(new OnSubscribe<Long>() {
@@ -248,7 +311,7 @@ public class Main {
                 long requestsSentDuringWindow = 0;
                 long currentWindowStart = System.currentTimeMillis();
                 boolean isThrottling = true;
-                long desiredWindowConcurrency = concurrencyWindows.get(0);
+                int desiredWindowConcurrency = concurrencyWindows.get(0);
 
                 long lastCheckMillis = currentWindowStart;
                 long millisSinceLastCheck = 0;
@@ -294,13 +357,15 @@ public class Main {
 
                                 log("new throttle window: %d", desiredWindowConcurrency);
                             }
+
+                            load.setActiveRequests(desiredWindowConcurrency);
                         }
                     } else {
                         // ?
                     }
 
                     try {
-                        semaphoreRef.get().tryAcquire(5, TimeUnit.SECONDS);
+                        load.activeRequestSemaphore.tryAcquire(5, TimeUnit.SECONDS);
                     } catch (InterruptedException e) {
                         throw new RuntimeException(e);
                     }
@@ -311,6 +376,104 @@ public class Main {
             }
         });
     }
+
+
+    private static final class RequestStats {
+
+        private final long testStartMillis;
+
+        // TODO: make configurable
+        private final long statsIntervalMillis = 5000;
+
+        private long lastStatsMillis;
+
+        final AtomicInteger requests = new AtomicInteger();
+        final AtomicInteger errors = new AtomicInteger();
+        final List<Long> latencies = new ArrayList<Long>();
+
+        Map<String, Object> lastStats;
+
+        private final AtomicReference<Object> statsLock = new AtomicReference<Object>();
+
+        RequestStats(long testStartMillis) {
+            this.testStartMillis = testStartMillis;
+            lastStatsMillis = testStartMillis;
+        }
+
+        boolean addRequest(int status, long latency) {
+            requests.incrementAndGet();
+
+            if (status == -1 || status > 399) errors.incrementAndGet();
+
+            latencies.add(latency);
+
+            final long currentMillis = System.currentTimeMillis();
+            final long millisSinceLastStats = currentMillis - lastStatsMillis;
+            if(millisSinceLastStats > statsIntervalMillis) {
+                lastStatsMillis = currentMillis;
+
+                // only one thread should win
+                if(!statsLock.compareAndSet(statsLock.get(), new Object())) return false;
+
+                this.lastStats = this.calculateAndClear(currentMillis, millisSinceLastStats);
+
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        Map<String, Object> fetchLastStats() {
+            return this.lastStats;
+        }
+
+        Map<String, Object> calculateAndClear(long currentMillis, long millisSinceLastStats) {
+            // copy stats into local method vars since other requests are executing concurrently
+            final long requestCount = requests.get();
+            final long errorCount = errors.get();
+            final List<Long> latenciesCopy = new ArrayList<Long>(this.latencies);
+
+            // resets stats for next window
+            requests.set(0);
+            errors.set(0);
+            latencies.clear();
+
+            final Map<String, Object> stats = new HashMap<String, Object>();
+
+            stats.put("proc_id", Thread.currentThread().getId());
+            stats.put("proc_name", Thread.currentThread().getName());
+
+            stats.put("request_count", requestCount);
+            stats.put("rps", requestCount / (millisSinceLastStats/1000));
+
+            stats.put("test_run_millis", currentMillis - this.testStartMillis);
+            stats.put("millis_since_last_stats", millisSinceLastStats);
+
+            stats.put("error_count", errorCount);
+            stats.put("error_pct", ((float)errorCount / requestCount) * 100);
+//            stats.put("reconnect_count", null);
+
+            if(latenciesCopy.size() < 2) {
+                log("less than 2 latencies to sort?");
+            } else {
+                Collections.sort(latenciesCopy);
+            }
+
+            final int latencyCount = latenciesCopy.size();
+
+            stats.put("latency_min", latenciesCopy.get(0));
+            stats.put("latency_max", latenciesCopy.get(latencyCount-1));
+            stats.put("latency_avg", null);
+            stats.put("latency_median", latenciesCopy.get(latencyCount/2));
+            stats.put("latency_90", latenciesCopy.get((int)(latencyCount * 0.9)));
+
+            return stats;
+        }
+
+    }
+
+    // I've abandoned this implemention as the semaphore approach is simpler and works better for me
+    // keeping the code around for a bit since it was such an emotional journey
 
     private static final Observable<Long> createTimedLoadGenerator() {
         return Observable.<Long>create(new OnSubscribe<Long>() {
@@ -495,100 +658,6 @@ public class Main {
                 }
             }
         });
-    }
-
-    private static final class RequestStats {
-
-        private final long testStartMillis;
-
-        // TODO: make configurable
-        private final long statsIntervalMillis = 5000;
-
-        private long lastStatsMillis;
-
-        final AtomicInteger requests = new AtomicInteger();
-        final AtomicInteger errors = new AtomicInteger();
-        final List<Long> latencies = new ArrayList<Long>();
-
-        Map<String, Object> lastStats;
-
-        private final AtomicReference<Object> statsLock = new AtomicReference<Object>();
-
-        RequestStats(long testStartMillis) {
-            this.testStartMillis = testStartMillis;
-            lastStatsMillis = testStartMillis;
-        }
-
-        boolean addRequest(int status, long latency) {
-            requests.incrementAndGet();
-
-            if (status == -1 || status > 399) errors.incrementAndGet();
-
-            latencies.add(latency);
-
-            final long currentMillis = System.currentTimeMillis();
-            final long millisSinceLastStats = currentMillis - lastStatsMillis;
-            if(millisSinceLastStats > statsIntervalMillis) {
-                lastStatsMillis = currentMillis;
-
-                // only one thread should win
-                if(!statsLock.compareAndSet(statsLock.get(), new Object())) return false;
-
-                this.lastStats = this.calculateAndClear(currentMillis, millisSinceLastStats);
-
-                return true;
-            } else {
-                return false;
-            }
-        }
-
-        Map<String, Object> fetchLastStats() {
-            return this.lastStats;
-        }
-
-        Map<String, Object> calculateAndClear(long currentMillis, long millisSinceLastStats) {
-            // copy stats into local method vars since other requests are executing concurrently
-            final long requestCount = requests.get();
-            final long errorCount = errors.get();
-            final List<Long> latenciesCopy = new ArrayList<Long>(this.latencies);
-
-            // resets stats for next window
-            requests.set(0);
-            errors.set(0);
-            latencies.clear();
-
-            final Map<String, Object> stats = new HashMap<String, Object>();
-
-            stats.put("proc_id", Thread.currentThread().getId());
-            stats.put("proc_name", Thread.currentThread().getName());
-
-            stats.put("request_count", requestCount);
-            stats.put("rps", requestCount / (millisSinceLastStats/1000));
-
-            stats.put("test_run_millis", currentMillis - this.testStartMillis);
-            stats.put("millis_since_last_stats", millisSinceLastStats);
-
-            stats.put("error_count", errorCount);
-            stats.put("error_pct", ((float)errorCount / requestCount) * 100);
-//            stats.put("reconnect_count", null);
-
-            if(latenciesCopy.size() < 2) {
-                log("less than 2 latencies to sort?");
-            } else {
-                Collections.sort(latenciesCopy);
-            }
-
-            final int latencyCount = latenciesCopy.size();
-
-            stats.put("latency_min", latenciesCopy.get(0));
-            stats.put("latency_max", latenciesCopy.get(latencyCount-1));
-            stats.put("latency_avg", null);
-            stats.put("latency_median", latenciesCopy.get(latencyCount/2));
-            stats.put("latency_90", latenciesCopy.get((int)(latencyCount * 0.9)));
-
-            return stats;
-        }
-
     }
 
 }

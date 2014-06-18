@@ -6,7 +6,9 @@ import com.netflix.zuul2.ZuulRequestContext
 import io.netty.buffer.ByteBuf
 import io.reactivex.netty.RxNetty
 import io.reactivex.netty.protocol.http.client.HttpClient
+import io.reactivex.netty.protocol.http.client.HttpClientBuilder
 import io.reactivex.netty.protocol.http.client.HttpClientRequest
+import io.reactivex.netty.protocol.http.server.HttpServerBuilder
 import io.reactivex.netty.protocol.http.server.HttpServerResponse
 import rx.Observable
 import rx.Subscriber
@@ -18,6 +20,8 @@ public class OriginRoutingFilter extends ZuulObservableFilter {
     private static final DynamicPropertyFactory DPF = DynamicPropertyFactory.getInstance();
     private static final DynamicStringProperty ORIGIN_HOST = DPF.getStringProperty("zuul.origin.host", null);
     private static final DynamicIntProperty ORIGIN_PORT = DPF.getIntProperty("zuul.origin.port", 80);
+    private static final DynamicIntProperty ORIGIN_MAX_CONNS = DPF.getIntProperty("zuul.origin.max-connections", 0);
+
 
     final HttpClient<ByteBuf, ByteBuf> client;
 
@@ -27,7 +31,11 @@ public class OriginRoutingFilter extends ZuulObservableFilter {
         if (host == null) {
             throw new IllegalStateException(ORIGIN_HOST.getName() + " cannot be null");
         }
-        client = RxNetty.createHttpClient(ORIGIN_HOST.get(), ORIGIN_PORT.get());
+        final HttpClientBuilder<ByteBuf, ByteBuf> builder =
+            new HttpClientBuilder<ByteBuf, ByteBuf>(ORIGIN_HOST.get(), ORIGIN_PORT.get())
+        final int maxConns = ORIGIN_MAX_CONNS.get();
+        if (maxConns > 0) builder = builder.withMaxConnections(maxConns)
+        client = builder.build();
     }
 
     @Override
@@ -52,6 +60,8 @@ public class OriginRoutingFilter extends ZuulObservableFilter {
         return Observable.create(new Observable.OnSubscribe<Subscriber>() {
             @Override
             void call(Subscriber sub) {
+                ctx.poolStats = client.getStats();
+
                 final String path = ctx.path;
 
                 final StringBuilder pathBuilder = new StringBuilder();

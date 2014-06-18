@@ -15,12 +15,27 @@ public class EventLogger {
     private static final DynamicIntProperty SAMPLE_PERCENTAGE =
         DynamicPropertyFactory.getInstance().getIntProperty("zuul.event-log.sample-percentage", 0);
 
+    private static final DynamicIntProperty SAMPLE_PERMYRIAD =
+        DynamicPropertyFactory.getInstance().getIntProperty("zuul.event-log.sample-permyriad", 0);
+
     public static final void log(String requestId, String eventMsg) {
-        if (Sampler.shouldSample(requestId.hashCode(), SAMPLE_PERCENTAGE.get())) {
-            if(LOG.isDebugEnabled()) {
+        final int permyriad = SAMPLE_PERMYRIAD.get();
+        final int percentage = SAMPLE_PERCENTAGE.get();
+
+        final int requestHash = requestId.hashCode();
+
+        boolean shouldSample = false;
+
+        if (permyriad > 0) {
+            shouldSample = Sampler.shouldSampleByPermyriad(requestHash, permyriad);
+        } else if (percentage > 0) {
+            shouldSample = Sampler.shouldSampleByPercentage(requestHash, percentage);
+        }
+
+        if (shouldSample) {
+            if (LOG.isDebugEnabled()) {
                 LOG.debug("{} {}", requestId, eventMsg);
             }
         }
     }
-
 }

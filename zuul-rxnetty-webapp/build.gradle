@@ -9,13 +9,13 @@ apply plugin: 'idea'
 
 // com.netflix.rxjava:rxjava-core:0.16.0
 
-configurations.all {
-    resolutionStrategy.eachDependency { DependencyResolveDetails details ->
-        if (details.requested.group == 'com.netflix.rxjava' && details.requested.name == 'rxjava-core') {
-            details.useVersion '[0.17,)'
-        }
-    }
-}
+// configurations.all {
+//     resolutionStrategy.eachDependency { DependencyResolveDetails details ->
+//         if (details.requested.group == 'com.netflix.rxjava' && details.requested.name == 'rxjava-core') {
+//             details.useVersion '[0.18,)'
+//         }
+//     }
+// }
 
 dependencies {
     compile project(":zuul-core")
@@ -26,14 +26,14 @@ dependencies {
 
     compile 'io.netty:netty-handler:4.0.14.Final'
     compile 'io.netty:netty-codec-http:4.0.14.Final'
-    compile 'com.netflix.rxjava:rxjava-core:[0.17,)'
+    compile 'com.netflix.rxjava:rxjava-core:[0.18,)'
     
     provided 'junit:junit-dep:4.10'
     //provided 'javax.servlet:servlet-api:2.5'
 
     // using local copy of rxnetty until it is public (plus dependencies)
-    //compile files('lib/rx-netty-0.3.1.jar')
-    compile files('lib/rx-netty-0.3.4.jar')
+    // compile files('lib/rxjava-core-0.18.4.jar')
+    compile files('lib/rx-netty-0.3.6.jar')
     compile files('lib/numerus-1.2-SNAPSHOT.jar')
 }
 
@@ -60,4 +60,25 @@ mainClassName = "com.netflix.zuul.rxnetty.StartServer"
 
 applicationDistribution.from("src/main/filters") {
     into "scripts"
+}
+
+/**
+ * ../gradlew start
+ * ../gradlew start -P'a=PORT'
+ * ../gradlew start -Pa=8976
+ */
+task start(type:JavaExec) {
+  main = mainClassName
+  classpath = sourceSets.main.runtimeClasspath
+
+  sp = systemProperties
+  sp["zuul.filter.root"] = "src/main/filters"
+  sp["zuul.origin.host"] = "localhost"
+  sp["zuul.origin.port"] = "8989"
+  sp["zuul.origin.max-connections"] = "2000"
+  sp["zuul.event-log.sample-permyriad"] = "1"
+
+  if (project.hasProperty('a')) {
+    args(a.split(' '))
+  }
 }
